@@ -1,0 +1,23 @@
+{
+    "name": "sithous/netsuitebundle",
+    "type": "symfony-bundle",
+    "description": "Provides NetSuite PHPToolkit API inside your Symfony2 application",
+    "keywords": ["netsuite", "symfony", "symfony2", "phptoolkit", "api"],
+    "homepage": "http://github.com/sithous",
+    "license": "MIT",
+    "autoload": {
+        "psr-0": { "Sithous\\NetSuiteBundle": "" }
+    },
+    "target-dir": "Sithous/NetSuiteBundle",
+    "authors": [
+        {
+            "name": "Skylar Sadlier",
+            "email": "skylord@sithous.com"
+        }
+    ],
+    "minimum-stability": "dev",
+    "require": {
+        "php": ">=5.3.2",
+        "symfony/framework-bundle": "~2.3"
+    }
+}
