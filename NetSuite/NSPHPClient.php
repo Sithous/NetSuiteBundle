@@ -2,177 +2,179 @@
 
 namespace Sithous\NetSuiteBundle\NetSuite;
 
-use Sithous\NetSuiteBundle\NetSuite\RecordRef as RecordRef;
 use SoapClient;
 use SoapHeader;
 use SimpleXMLElement;
 
-function arrayValuesAreEmpty ($array)
+class NSServiceFunctions
 {
-    if (!is_array($array))
+    public static function arrayValuesAreEmpty ($array)
     {
-        return false;
-    }
-
-    foreach ($array as $key => $value)
-    {
-        if ( $value === false || ( !is_null($value) && $value != "" && !arrayValuesAreEmpty($value)))
+        if (!is_array($array))
         {
             return false;
         }
-    }
 
-    return true;
-}
-
-function array_is_associative ($array)
-{
-    if ( is_array($array) && ! empty($array) )
-    {
-        for ( $iterator = count($array) - 1; $iterator; $iterator-- )
+        foreach ($array as $key => $value)
         {
-            if ( ! array_key_exists($iterator, $array) ) { return true; }
-        }
-        return ! array_key_exists(0, $array);
-    }
-    return false;
-}
-
-function setFields($object, array $fieldArray=null)
-{
-    // helper method that allows creating objects and setting their properties based on an associative array passed as argument. Mimics functionality from PHP toolkit
-    $classname = get_class($object);
-    // a static map that maps class parameters to their types. needed for knowing which objects to create
-    $typesmap = $classname::$paramtypesmap;
-
-    if (!isset ($typesmap)) {
-        // if the class does not have paramtypesmap, consider it empty
-        $typesmap = array();
-    }
-
-    if ($fieldArray == null)
-    {
-        // nothign to do
-        return;
-    }
-
-    foreach ($fieldArray as $fldName => $fldValue)
-    {
-        if (((is_null($fldValue) || $fldValue == "") && $fldValue !== false) || arrayValuesAreEmpty($fldValue))
-        {
-            //empty param
-            continue;
-        }
-
-        if (!isset($typesmap[$fldName])) {
-            // the value is not a valid class atrribute
-            trigger_error("SetFields error: parameter \"" .$fldName . "\" is not a valid parameter for an object of class \"" . $classname . "\", it will be omitted", E_USER_WARNING);
-            continue;
-        }
-
-        if ($fldValue === 'false')
-        {
-            // taken from the PHP toolkit, but is it really necessary?
-            $object->$fldName = FALSE;
-        }
-        elseif (is_object($fldValue))
-        {
-            $object->$fldName = $fldValue;
-        }
-        elseif (is_array($fldValue) && array_is_associative($fldValue))
-        {
-            // example: 'itemList'  => array('item' => array($item1, $item2), 'replaceAll'  => false)
-            if (substr($typesmap[$fldName],-2) == "[]") {
-                trigger_error("Trying to assign an object into an array parameter \"" .$fldName . "\" of class \"" . $classname . "\", it will be omitted", E_USER_WARNING);
-                continue;
+            if ( $value === false || ( !is_null($value) && $value != "" && !NSServiceFunctions::arrayValuesAreEmpty($value)))
+            {
+                return false;
             }
-            $obj = new $typesmap[$fldName]();
-            setFields($obj, $fldValue);
-            $object->$fldName = $obj;
         }
-        elseif (is_array($fldValue) && !array_is_associative($fldValue))
+
+        return true;
+    }
+
+    public static function array_is_associative ($array)
+    {
+        if ( is_array($array) && ! empty($array) )
         {
-            // array type 
-            if (substr($typesmap[$fldName],-2) != "[]") {
-                // the type is not an array, skipping this value
-                trigger_error("Trying to assign an array value into parameter \"" .$fldName . "\" of class \"" . $classname . "\", it will be omitted", E_USER_WARNING);
+            for ( $iterator = count($array) - 1; $iterator; $iterator-- )
+            {
+                if ( ! array_key_exists($iterator, $array) ) { return true; }
+            }
+            return ! array_key_exists(0, $array);
+        }
+        return false;
+    }
+
+    public static function setFields($object, array $fieldArray=null)
+    {
+        // helper method that allows creating objects and setting their properties based on an associative array passed as argument. Mimics functionality from PHP toolkit
+        $classname = get_class($object);
+        // a static map that maps class parameters to their types. needed for knowing which objects to create
+        $typesmap = $classname::$paramtypesmap;
+
+        if (!isset ($typesmap)) {
+            // if the class does not have paramtypesmap, consider it empty
+            $typesmap = array();
+        }
+
+        if ($fieldArray == null)
+        {
+            // nothign to do
+            return;
+        }
+
+        foreach ($fieldArray as $fldName => $fldValue)
+        {
+            if (((is_null($fldValue) || $fldValue == "") && $fldValue !== false) || arrayValuesAreEmpty($fldValue))
+            {
+                //empty param
                 continue;
             }
 
-            // get the base type  - the string is of type <type>[]
-            $basetype = substr($typesmap[$fldName],0,-2);
-
-            // example: 'item' => array($item1, $item2)
-            foreach ($fldValue as $item)
-            {
-                if (is_object($item))
-                {
-                    // example: $item1 = new nsComplexObject('SalesOrderItem');
-                    $val[] = $item;
-                }
-                elseif ($typesmap[$fldName] == "string")
-                {
-                    // handle enums
-                    $val[] = $item;
-                }
-                else
-                {
-                    // example: $item2 = array( 'item'      => new nsComplexObject('RecordRef', array('internalId' => '17')),
-                    //                          'quantity'  => '3')
-                    $obj = new $basetype();
-                    setFields($obj, $item);
-                    $val[] = $obj;
-                }
+            if (!isset($typesmap[$fldName])) {
+                // the value is not a valid class atrribute
+                trigger_error("SetFields error: parameter \"" .$fldName . "\" is not a valid parameter for an object of class \"" . $classname . "\", it will be omitted", E_USER_WARNING);
+                continue;
             }
 
-            $object->$fldName = $val;
-        }
-        else
-        {
-            $object->$fldName = $fldValue;
-        }
-    }
-}
-
-function milliseconds()
-{
-    $m = explode(' ',microtime());
-    return (int)round($m[0]*10000,4);
-}
-
-function cleanUpNamespaces($xml_root)
-{
-    $xml_root = str_replace('xsi:type', 'xsitype', $xml_root);
-    $record_element = new SimpleXMLElement($xml_root);
-
-    foreach ($record_element->getDocNamespaces() as $name => $ns)
-    {
-        if ( $name != "" )
-        {
-            $xml_root = str_replace($name . ':', '', $xml_root);
-        }
-    }
-
-    $record_element = new SimpleXMLElement($xml_root);
-
-    foreach($record_element->children() as $field)
-    {
-        $field_element = new SimpleXMLElement($field->asXML());
-
-        foreach ($field_element->getDocNamespaces() as $name2 => $ns2)
-        {
-            if ($name2 != "")
+            if ($fldValue === 'false')
             {
-                $xml_root = str_replace($name2 . ':', '', $xml_root);
+                // taken from the PHP toolkit, but is it really necessary?
+                $object->$fldName = FALSE;
+            }
+            elseif (is_object($fldValue))
+            {
+                $object->$fldName = $fldValue;
+            }
+            elseif (is_array($fldValue) && NSServiceFunctions::array_is_associative($fldValue))
+            {
+                // example: 'itemList'  => array('item' => array($item1, $item2), 'replaceAll'  => false)
+                if (substr($typesmap[$fldName],-2) == "[]") {
+                    trigger_error("Trying to assign an object into an array parameter \"" .$fldName . "\" of class \"" . $classname . "\", it will be omitted", E_USER_WARNING);
+                    continue;
+                }
+                $obj = new $typesmap[$fldName]();
+                NSServiceFunctions::setFields($obj, $fldValue);
+                $object->$fldName = $obj;
+            }
+            elseif (is_array($fldValue) && !NSServiceFunctions::array_is_associative($fldValue))
+            {
+                // array type
+                if (substr($typesmap[$fldName],-2) != "[]") {
+                    // the type is not an array, skipping this value
+                    trigger_error("Trying to assign an array value into parameter \"" .$fldName . "\" of class \"" . $classname . "\", it will be omitted", E_USER_WARNING);
+                    continue;
+                }
+
+                // get the base type  - the string is of type <type>[]
+                $basetype = substr($typesmap[$fldName],0,-2);
+
+                // example: 'item' => array($item1, $item2)
+                foreach ($fldValue as $item)
+                {
+                    if (is_object($item))
+                    {
+                        // example: $item1 = new nsComplexObject('SalesOrderItem');
+                        $val[] = $item;
+                    }
+                    elseif ($typesmap[$fldName] == "string")
+                    {
+                        // handle enums
+                        $val[] = $item;
+                    }
+                    else
+                    {
+                        // example: $item2 = array( 'item'      => new nsComplexObject('RecordRef', array('internalId' => '17')),
+                        //                          'quantity'  => '3')
+                        $obj = new $basetype();
+                        NSServiceFunctions::setFields($obj, $item);
+                        $val[] = $obj;
+                    }
+                }
+
+                $object->$fldName = $val;
+            }
+            else
+            {
+                $object->$fldName = $fldValue;
             }
         }
     }
 
-    return $xml_root;
+    public static function milliseconds()
+    {
+        $m = explode(' ',microtime());
+        return (int)round($m[0]*10000,4);
+    }
+
+    public static function cleanUpNamespaces($xml_root)
+    {
+        $xml_root = str_replace('xsi:type', 'xsitype', $xml_root);
+        $record_element = new SimpleXMLElement($xml_root);
+
+        foreach ($record_element->getDocNamespaces() as $name => $ns)
+        {
+            if ( $name != "" )
+            {
+                $xml_root = str_replace($name . ':', '', $xml_root);
+            }
+        }
+
+        $record_element = new SimpleXMLElement($xml_root);
+
+        foreach($record_element->children() as $field)
+        {
+            $field_element = new SimpleXMLElement($field->asXML());
+
+            foreach ($field_element->getDocNamespaces() as $name2 => $ns2)
+            {
+                if ($name2 != "")
+                {
+                    $xml_root = str_replace($name2 . ':', '', $xml_root);
+                }
+            }
+        }
+
+        return $xml_root;
+    }
 }
 
 class NSPHPClient {
-    private $nsversion = "2014_2r1";    
+    private $nsversion = "2015_1r1";
 
     public $client = null;
     public $passport = null;
@@ -188,13 +190,13 @@ class NSPHPClient {
         global $debuginfo;
 
         if (!isset($wsdl)) {
-             if (!isset($nshost)) {
-                throw new Exception('Webservice host must be specified');
-             }
-             if (!isset($nsendpoint)) {
-                throw new Exception('Webservice endpoint must be specified');
-             }
-             $wsdl = $nshost . "/wsdl/v" . $nsendpoint . "_0/netsuite.wsdl";
+            if (!isset($nshost)) {
+                throw new \Exception('Webservice host must be specified');
+            }
+            if (!isset($nsendpoint)) {
+                throw new \Exception('Webservice endpoint must be specified');
+            }
+            $wsdl = $nshost . "/wsdl/v" . $nsendpoint . "_0/netsuite.wsdl";
         }
 
         if (!extension_loaded('soap')) {
@@ -242,40 +244,40 @@ class NSPHPClient {
         $options['user_agent'] =  $httpheaders;
         $this->setPassport($nsaccount, $nsemail, $nsrole, $nspassword);
 
-        $this->client = new SoapClient($wsdl, $options);
+        $this->client = new \SoapClient($wsdl, $options);
     }
 
     public function setPassport($nsaccount, $nsemail, $nsrole, $nspassword) {
-        $this->passport = new Passport();
+        $this->passport = new \Passport();
         $this->passport->account = $nsaccount;
         $this->passport->email = $nsemail;
         $this->passport->password = $nspassword;
-        $this->passport->role = new RecordRef();
+        $this->passport->role = new \RecordRef();
         $this->passport->role->internalId = $nsrole;
     }
 
     public function useRequestLevelCredentials($option) {
-         $this->userequest = $option;
+        $this->userequest = $option;
     }
 
     public function setPreferences ($warningAsError = false, $disableMandatoryCustomFieldValidation = false, $disableSystemNotesForCustomFields = false,  $ignoreReadOnlyFields = false)
     {
-        $sp = new Preferences();
+        $sp = new \Preferences();
         $sp->warningAsError  = $warningAsError;
         $sp->disableMandatoryCustomFieldValidation = $disableMandatoryCustomFieldValidation;
         $sp->disableSystemNotesForCustomFields = $disableSystemNotesForCustomFields;
-                                $sp->ignoreReadOnlyFields = $ignoreReadOnlyFields;
+        $sp->ignoreReadOnlyFields = $ignoreReadOnlyFields;
 
         $this->addHeader("preferences", $sp);
-    }          
-                
+    }
+
     public function clearPreferences() {
         $this->clearHeader("preferences");
-    }        
+    }
 
     public function setSearchPreferences ($bodyFieldsOnly = true, $pageSize = 50, $returnSearchColumns = true)
     {
-        $sp = new SearchPreferences();
+        $sp = new \SearchPreferences();
         $sp->bodyFieldsOnly = $bodyFieldsOnly;
         $sp->pageSize = $pageSize;
         $sp->returnSearchColumns = $returnSearchColumns;
@@ -309,11 +311,11 @@ class NSPHPClient {
         if ( file_exists(dirname(__FILE__) . '/nslog') ) {
             // log the request and response into the nslog directory. Code taken from PHP toolkit
             // REQUEST
-            $req = dirname(__FILE__) . '/nslog' . "/" . date("Ymd.His") . "." . milliseconds() . "-" . $operation . "-request.xml";
+            $req = dirname(__FILE__) . '/nslog' . "/" . date("Ymd.His") . "." . NSServiceFunctions::milliseconds() . "-" . $operation . "-request.xml";
             $Handle = fopen($req, 'w');
             $Data = $this->client->__getLastRequest();
 
-            $Data = cleanUpNamespaces($Data);
+            $Data = NSServiceFunctions::cleanUpNamespaces($Data);
 
             $xml = simplexml_load_string($Data, 'SimpleXMLElement', LIBXML_NOCDATA);
 
@@ -335,7 +337,7 @@ class NSPHPClient {
             fclose($Handle);
 
             // RESPONSE
-            $resp = dirname(__FILE__) . '/nslog' . "/" . date("Ymd.His") . "." . milliseconds() . "-" . $operation . "-response.xml";
+            $resp = dirname(__FILE__) . '/nslog' . "/" . date("Ymd.His") . "." . NSServiceFunctions::milliseconds() . "-" . $operation . "-response.xml";
             $Handle = fopen($resp, 'w');
             $Data = $this->client->__getLastResponse();
             fwrite($Handle, $Data);

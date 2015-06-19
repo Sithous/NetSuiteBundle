@@ -34,20 +34,16 @@ Inside your controller simply initialize using this command
 
 After you have initialized you can use the classes anywhere by adding it to your uses:
 
-	use Sithous\NetSuiteBundle\NetSuite\NetSuiteService;
-	use Sithous\NetSuiteBundle\NetSuite\GetRequest;
-	use Sithous\NetSuiteBundle\NetSuite\RecordRef;
-
 	class MyController extends Controller {
 
 		public function indexAction() {
 
 			$this->container->get('sithous.netsuite');
 
-			$service = new NetSuiteService();
+			$service = new \NetSuiteService();
 
-			$request = new GetRequest();
-			$request->baseRef = new RecordRef();
+			$request = new \GetRequest();
+			$request->baseRef = new \RecordRef();
 			$request->baseRef->internalId = "21";
 			$request->baseRef->type = "customer";
 			$getResponse = $service->get($request);
