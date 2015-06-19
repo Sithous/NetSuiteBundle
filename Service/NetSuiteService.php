@@ -15,7 +15,7 @@ class NetSuiteService
     {
         global $nsendpoint, $nshost, $nsemail, $nspassword, $nsrole, $nsaccount;
 
-        $nsendpoint = '2014_2';
+        $nsendpoint = '2015_1';
         $nshost     = $container->getParameter('netsuite.host');
         $nsemail    = $container->getParameter('netsuite.email');
         $nspassword = $container->getParameter('netsuite.password');
