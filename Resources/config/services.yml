@@ -1,4 +1,4 @@
 services:
     sithous.netsuite:
         class: Sithous\NetSuiteBundle\Services\NetSuiteService
-        arguments: [@service_container]
+        arguments: ['@service_container']
